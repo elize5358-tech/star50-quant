@@ -1,0 +1,4 @@
+﻿model,setup,ic,ic_std,icir,annual_return,sharpe_ratio,max_drawdown,monthly_win_rate,source,evaluation
+v5 MoE,动态Loss权重,0.0212,0.1341,0.158,0.6466,1.541,-0.5254,0.521,user confirmed MoE v5 experiment summary,主模型基准
+XGBoost,传统树模型基准,0.0288,,2.5,0.8,2.0,-0.3,,user confirmed XGBoost benchmark summary,传统树模型对照
+业界优秀,量化选股参考线,0.03,,1.0,0.4,1.5,-0.3,,industry reference benchmark,参考线
