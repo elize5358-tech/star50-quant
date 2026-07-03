@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+
 import pandas as pd
 
 
@@ -28,10 +30,23 @@ def gate_weights(row: pd.Series) -> tuple[float, float]:
     function is only used to make the product demo explainable when saved MoE
     predictions are not available.
     """
-    bias_signal = float(row.get("idx_bias_20d", 0.0)) * 8 + float(row.get("idx_bias_60d", 0.0)) * 4
-    vol_penalty = max(float(row.get("idx_vol_mom", 0.0)), 0.0) * 2
-    bull = 1 / (1 + pow(2.71828, -(bias_signal - vol_penalty)))
-    bull = min(max(bull, 0.18), 0.82)
+    idx_bias_20 = float(row.get("idx_bias_20d", 0.0))
+    idx_bias_60 = float(row.get("idx_bias_60d", 0.0))
+    idx_vol_mom = float(row.get("idx_vol_mom", 0.0))
+    mom_5d = float(row.get("mom_5d", 0.0))
+    bias_20d = float(row.get("bias_20d", 0.0))
+    pv_corr = float(row.get("pv_corr", 0.0))
+    vol_20d = abs(float(row.get("vol_20d", 0.0)))
+
+    trend_signal = 0.45 * math.tanh(idx_bias_20) + 0.25 * math.tanh(idx_bias_60)
+    stock_signal = 0.18 * math.tanh(mom_5d) + 0.12 * math.tanh(bias_20d) + 0.08 * math.tanh(pv_corr)
+    vol_signal = -0.18 * math.tanh(max(idx_vol_mom, 0.0)) - 0.08 * math.tanh(max(vol_20d - 1.0, 0.0))
+    raw = trend_signal + stock_signal + vol_signal
+    if abs(raw) < 0.03:
+        raw = 0.18 * math.tanh(mom_5d + 0.5 * bias_20d + 0.25 * pv_corr)
+
+    bull = 1 / (1 + math.exp(-2.2 * raw))
+    bull = min(max(bull, 0.22), 0.78)
     bear = 1 - bull
     return round(bull, 3), round(bear, 3)
 

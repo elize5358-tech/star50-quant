@@ -180,9 +180,14 @@ elif page == "模型":
         )
     with right:
         st.subheader("Deep Learning MoE")
-        sample = predictions.iloc[0]
-        st.plotly_chart(gate_chart(float(sample["gate_bull"]), float(sample["gate_bear"])), use_container_width=True)
-        st.caption("市场环境特征 → Gate → 牛市专家权重 / 熊市专家权重 → 最终 Alpha Score")
+        gate_pool = predictions.nsmallest(10, "rank")
+        bull_weight = float(gate_pool["gate_bull"].mean())
+        bear_weight = 1 - bull_weight
+        st.plotly_chart(gate_chart(bull_weight, bear_weight), use_container_width=True)
+        st.caption(
+            f"Top 10 推荐池平均 Gate 权重：牛市专家 {bull_weight:.1%} / 熊市专家 {bear_weight:.1%}。"
+            "当前为 demo 近似，真实生产应读取 MoE 训练模型的 gate 输出。"
+        )
 
     st.markdown("#### MoE 结构")
     m1, m2, m3 = st.columns(3)
