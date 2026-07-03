@@ -56,6 +56,41 @@ def gate_chart(bull_weight: float, bear_weight: float) -> go.Figure:
     return fig
 
 
+def gate_wave_chart(gate_history: pd.DataFrame) -> go.Figure:
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(
+            x=gate_history["trade_date"],
+            y=gate_history["gate_bull_smooth"],
+            name="牛市专家",
+            mode="lines",
+            line=dict(color=GREEN, width=3, shape="spline", smoothing=0.8),
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=gate_history["trade_date"],
+            y=gate_history["gate_bear_smooth"],
+            name="熊市专家",
+            mode="lines",
+            fill="tonexty",
+            fillcolor="rgba(245, 158, 11, 0.16)",
+            line=dict(color=ORANGE, width=3, shape="spline", smoothing=0.8),
+        )
+    )
+    fig.add_hline(y=0.5, line_dash="dot", line_color="#94a3b8")
+    fig.update_layout(
+        template="plotly_white",
+        height=300,
+        yaxis=dict(range=[0.2, 0.8], tickformat=".0%", title="Gate 权重"),
+        xaxis_title="交易日期",
+        margin=dict(l=20, r=20, t=20, b=20),
+        legend=dict(orientation="h", y=1.08),
+        hovermode="x unified",
+    )
+    return fig
+
+
 def risk_radar(risk: dict) -> go.Figure:
     labels = ["组合波动率", "最大回撤", "行业集中度", "单票权重", "换手率", "Beta暴露"]
     values = [

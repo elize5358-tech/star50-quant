@@ -85,10 +85,12 @@ def ensure_demo_outputs(root: Path | None = None) -> dict[str, pd.DataFrame | di
     backtest = load_backtest(root)
     metrics = load_metrics(root, backtest)
     comparison = load_model_comparison(root, metrics)
+    gate_history = load_gate_history(features)
 
     predictions.to_csv(outputs / "demo_predictions.csv", index=False, encoding="utf-8-sig")
     backtest.to_csv(outputs / "demo_backtest.csv", index=False, encoding="utf-8-sig")
     comparison.to_csv(outputs / "demo_model_comparison.csv", index=False, encoding="utf-8-sig")
+    gate_history.to_csv(outputs / "demo_gate_history.csv", index=False, encoding="utf-8-sig")
     with (outputs / "demo_metrics.json").open("w", encoding="utf-8") as f:
         json.dump(metrics, f, ensure_ascii=False, indent=2)
 
@@ -98,6 +100,7 @@ def ensure_demo_outputs(root: Path | None = None) -> dict[str, pd.DataFrame | di
         "backtest": backtest,
         "metrics": metrics,
         "comparison": comparison,
+        "gate_history": gate_history,
     }
 
 
@@ -152,6 +155,27 @@ def load_predictions(root: Path | None = None, features: pd.DataFrame | None = N
     top["gate_bear"] = [x[1] for x in gates]
     top["explanation"] = top.apply(stock_explanation, axis=1)
     return top[["ts_code", "trade_date", "pred_score", "rank", "recommended_weight", "risk_flag", "explanation", "gate_bull", "gate_bear", *STOCK_FEATURES, *MARKET_FEATURES]].sort_values("rank").reset_index(drop=True)
+
+
+def load_gate_history(features: pd.DataFrame, days: int = 120) -> pd.DataFrame:
+    """Build a demo-only time series of Top 10 pool gate weights."""
+    recent_dates = sorted(features["trade_date"].dropna().unique())[-days:]
+    history = features[features["trade_date"].isin(recent_dates)].copy()
+    history["alpha_proxy"] = (
+        0.28 * history.groupby("trade_date")["mom_5d"].rank(pct=True)
+        - 0.18 * history.groupby("trade_date")["vol_20d"].rank(pct=True)
+        + 0.24 * history.groupby("trade_date")["bias_20d"].rank(pct=True)
+        + 0.18 * history.groupby("trade_date")["pv_corr"].rank(pct=True)
+        + 0.12 * history.groupby("trade_date")["cs_dispersion"].rank(pct=True)
+    )
+    top_pool = history.sort_values(["trade_date", "alpha_proxy"], ascending=[True, False]).groupby("trade_date").head(10).copy()
+    gates = top_pool.apply(gate_weights, axis=1)
+    top_pool["gate_bull"] = [x[0] for x in gates]
+    top_pool["gate_bear"] = [x[1] for x in gates]
+    daily = top_pool.groupby("trade_date", as_index=False)[["gate_bull", "gate_bear", "alpha_proxy"]].mean()
+    daily["gate_bull_smooth"] = daily["gate_bull"].ewm(span=5, adjust=False).mean()
+    daily["gate_bear_smooth"] = 1 - daily["gate_bull_smooth"]
+    return daily
 
 
 def load_backtest(root: Path | None = None) -> pd.DataFrame:

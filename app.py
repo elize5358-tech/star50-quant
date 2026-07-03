@@ -9,7 +9,7 @@ import streamlit as st
 from src.demo_data import MARKET_FEATURES, STOCK_FEATURES, ensure_demo_outputs
 from src.model_explain import moe_summary
 from src.risk_control import calculate_risk_dashboard
-from src.visualization import feature_distribution, gate_chart, nav_curve, risk_radar, top_predictions
+from src.visualization import feature_distribution, gate_wave_chart, nav_curve, risk_radar, top_predictions
 
 
 st.set_page_config(page_title="星火 Alpha", page_icon="✦", layout="wide", initial_sidebar_state="expanded")
@@ -66,6 +66,7 @@ predictions = data["predictions"]
 backtest = data["backtest"]
 metrics = data["metrics"]
 comparison = data["comparison"]
+gate_history = data["gate_history"]
 risk = calculate_risk_dashboard(backtest, predictions)
 
 
@@ -180,12 +181,11 @@ elif page == "模型":
         )
     with right:
         st.subheader("Deep Learning MoE")
-        gate_pool = predictions.nsmallest(10, "rank")
-        bull_weight = float(gate_pool["gate_bull"].mean())
-        bear_weight = 1 - bull_weight
-        st.plotly_chart(gate_chart(bull_weight, bear_weight), use_container_width=True)
+        latest_gate = gate_history.iloc[-1]
+        st.plotly_chart(gate_wave_chart(gate_history), use_container_width=True)
         st.caption(
-            f"Top 10 推荐池平均 Gate 权重：牛市专家 {bull_weight:.1%} / 熊市专家 {bear_weight:.1%}。"
+            f"最近一期 Top 10 推荐池平均 Gate 权重：牛市专家 {latest_gate['gate_bull_smooth']:.1%} / "
+            f"熊市专家 {latest_gate['gate_bear_smooth']:.1%}。"
             "当前为 demo 近似，真实生产应读取 MoE 训练模型的 gate 输出。"
         )
 
